@@ -1,6 +1,6 @@
 # 发票识别入表
 
-本工具使用 Doubao（豆包）大模型识别发票内容：先提取 PDF 文本，再通过火山方舟 API 解析发票字段和明细，最后写入 Excel 模板。使用前请准备火山方舟 API Key，并配置到 `.env` 的 `ARK_API_KEY`。
+本工具使用 Doubao-Seed-2.0-lite 大模型识别发票内容：先提取 PDF 文本，再通过火山方舟 API 解析发票字段和明细，最后写入 Excel 模板。使用前请准备火山方舟 API Key，并配置到 `.env` 的 `ARK_API_KEY`。
 
 ## 使用
 
