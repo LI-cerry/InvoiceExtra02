@@ -1,0 +1,9 @@
+{
+  "name": "invoice-extra02",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Invoice extraction pipeline using Doubao and Excel templates",
+  "scripts": {"start": "node src/cli.js", "check": "node --check src/cli.js"},
+  "dependencies": {"dotenv": "^16.4.7", "pdfjs-dist": "^4.10.38", "xlsx": "^0.18.5"}
+}
