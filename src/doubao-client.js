@@ -1,6 +1,6 @@
-const schema = '{"seller_name":"seller","items":[{"goods":"goods","unit":"unit","quantity":0,"total_amount":0}]}';
+const schema = '{"seller_name":"seller","invoice_total_amount":0,"items":[{"goods":"goods","unit":"unit","quantity":0}]}';
 export async function recognizeInvoice(text, config) {
-  const prompt = `Extract seller name and every invoice line item. Return JSON only. Schema: ${schema}\nInvoice text: ${text}`;
+  const prompt = `Extract seller name, the invoice grand total labeled 价税合计（小写）, and every distinct goods line. Return JSON only. invoice_total_amount must be the grand total including tax, as a number. Keep each distinct goods line in items even when there are multiple goods. Schema: ${schema}\nInvoice text: ${text}`;
   const responsesEndpoint = /\/responses\/?$/i.test(config.endpoint);
   let response = await send(config, responsesEndpoint
     ? { model: config.model, temperature: 0, input: prompt }
@@ -35,4 +35,23 @@ function findText(value) {
   return '';
 }
 function parseJson(content) { const cleaned = content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, ''); try { return JSON.parse(cleaned); } catch { throw new Error(`Model output is not valid JSON: ${content.slice(0, 300)}`); } }
-export function validateInvoice(data, source) { if (!data || typeof data.seller_name !== 'string' || !data.seller_name.trim()) throw new Error(`${source}: seller_name missing`); if (!Array.isArray(data.items) || !data.items.length) throw new Error(`${source}: items empty`); return { seller_name: data.seller_name.trim(), items: data.items.map((item, i) => { if (!item.goods || !item.unit) throw new Error(`${source}: item ${i + 1} goods/unit missing`); const quantity = Number(item.quantity); const total = Number(item.total_amount); if (!Number.isFinite(quantity) || !Number.isFinite(total)) throw new Error(`${source}: item ${i + 1} quantity/amount invalid`); return { goods: String(item.goods).trim(), unit: String(item.unit).trim(), quantity, total_amount: total }; }) }; }
+export function validateInvoice(data, source) {
+  if (!data || typeof data.seller_name !== 'string' || !data.seller_name.trim()) throw new Error(`${source}: seller_name missing`);
+  if (!Array.isArray(data.items) || !data.items.length) throw new Error(`${source}: items empty`);
+  const invoiceTotal = parseNumber(data.invoice_total_amount ?? data.total_amount ?? data.grand_total);
+  if (!Number.isFinite(invoiceTotal)) throw new Error(`${source}: invoice_total_amount missing or invalid`);
+  const items = data.items.map((item, i) => {
+    if (!item || !String(item.goods ?? '').trim()) throw new Error(`${source}: item ${i + 1} goods missing`);
+    const quantity = parseNumber(item.quantity);
+    const total = parseNumber(item.total_amount);
+    if (data.items.length === 1 && (!String(item.unit ?? '').trim() || !Number.isFinite(quantity))) throw new Error(`${source}: single item unit/quantity invalid`);
+    return { goods: String(item.goods).trim(), unit: String(item.unit ?? '').trim(), quantity: Number.isFinite(quantity) ? quantity : null, total_amount: Number.isFinite(total) ? total : null };
+  });
+  return { seller_name: data.seller_name.trim(), invoice_total_amount: invoiceTotal, items };
+}
+function parseNumber(value) {
+  if (value === null || value === undefined || value === '') return NaN;
+  if (typeof value === 'number') return value;
+  const normalized = String(value).replace(/[￥¥,，\s元]/g, '').trim();
+  return normalized ? Number(normalized) : NaN;
+}
